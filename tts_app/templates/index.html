@@ -1,0 +1,858 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Narration Mode</title>
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html, body { height: 100%%; font-family: 'Inter', sans-serif; background: #f8f5ee; }
+        button { cursor: pointer; transition: all 0.3s ease; }
+        ::selection { background: #ffd700; color: #1a1a1a; }
+
+        /* Paste screen */
+        #pasteScreen {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            height: 95vh; padding: 1.5rem; /* Reduced padding for better fit */
+            background: linear-gradient(135deg, #ffffff 0%, #f8f5ee 100%), url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"%3E%3Crect x="0" y="0" width="100" height="100" fill="none"/%3E%3Ccircle cx="50" cy="50" r="40" fill="rgba(0,0,0,0.05)"/%3E%3C/svg%3E');
+            background-size: cover, 200px 200px;
+        }
+        #pasteScreen h1 {
+            font-size: 2.5rem; /* Slightly smaller for laptop screens */
+            font-weight: 700; color: #2d2d2d; margin-bottom: 1.5rem;
+            text-align: center; text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            font-family: 'Georgia', serif;
+        }
+        #pasteScreen label {
+            font-size: 1.5rem; color: #4a4a4a; margin-bottom: 0.75rem; padding-bottom:.5rem ;
+            font-weight: 500; align-self: flex-start; width: 100%; max-width: 1100px; /* Adjusted for laptop screens */
+        }
+        #pasteScreen textarea {
+            width: 100%; max-width: 1100px; /* Adjusted for laptop screens */
+            height: 300px; /* Slightly smaller height */
+            padding: 2rem; /* Reduced padding */
+            border: 2px solid #d1d5db; border-radius: 12px; font-size: 1rem;
+            resize: none; margin-bottom: 1.5rem;margin-top:.5rem; box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+            background: #ffffff; transition: border-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease;
+            font-family: 'Inter', sans-serif; line-height: 1.6;
+        }
+        #pasteScreen textarea:focus {
+            border-color: #5a3e2b; box-shadow: 0 0 12px rgba(90,62,43,0.4); outline: none;
+            transform: scale(1.005);
+        }
+        #pasteScreen textarea::placeholder {
+            color: #9ca3af; transition: opacity 0.3s ease;
+        }
+        #pasteScreen textarea:focus::placeholder {
+            opacity: 0.6;
+        }
+        #pasteScreen select {
+            width: 100%; max-width: 1100px; /* Adjusted for laptop screens */
+            padding: 0.9rem; /* Slightly reduced padding */
+            border: 2px solid #d1d5db; border-radius: 12px; font-size: 1rem;
+            margin-bottom: 1.5rem; box-shadow: 0 4px 12px rgba(0,0,0,0.1);margin-top:.5rem;
+            background: #ffffff; transition: border-color 0.3s ease;
+            font-family: 'Inter', sans-serif;
+        }
+        #pasteScreen select:focus {
+            border-color: #5a3e2b; outline: none;
+        }
+        #generateBtn {
+            width: 100%; max-width: 1100px; /* Adjusted for laptop screens */
+            padding: 1.2rem; /* Reduced padding for smaller button */
+            background: linear-gradient(90deg, #5a3e2b 0%, #7b5539 100%);
+            color: #fff; border: none; border-radius: 50px; font-size: 1.1rem; /* Slightly smaller font */
+            font-weight: 600; display: flex; align-items: center; justify-content: center;
+            gap: 0.4rem; box-shadow: 0 6px 20px rgba(90,62,43,0.3);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        #generateBtn i {
+            font-size: 1.5rem; /* Smaller icon size */
+        }
+        #generateBtn:hover {
+            transform: translateY(-2px); box-shadow: 0 8px 24px rgba(90,62,43,0.5);
+            background: linear-gradient(90deg, #7b5539 0%, #9b6f4a 100%);
+        }
+        #progressIndicator, #generationStatus, #errorMessage {
+            width: 100%; max-width: 1100px; /* Adjusted for laptop screens */
+            margin-top: 1rem; font-size: 0.95rem; /* Slightly smaller font */
+            text-align: center; display: none; color: #4a4a4a;
+        }
+        #errorMessage { color: #dc2626; }
+
+        /* Reader screen */
+        #readerScreen {
+            display: none; flex-direction: column; height: 95vh;
+            background: #f8f5ee; position: relative;
+        }
+        header {
+            display: flex; align-items: center; padding: 0.8rem 1.5rem; /* Reduced padding */
+            background: #ffffff; border-bottom: 2px solid #e5e7eb;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+        }
+        .back {
+            font-size: 1.3rem; /* Slightly smaller icon */
+            color: #5a3e2b; cursor: pointer;
+            transition: color 0.3s ease, transform 0.3s ease;
+        }
+        .back:hover { color: #7b5539; transform: scale(1.1); }
+        .mode-toggle {
+            display: flex; gap: 0.4rem; background: #f1ede4; padding: 0.3rem;
+            border-radius: 10px; margin-left: auto;
+        }
+        .mode-toggle button {
+            background: none; border: none; padding: 0.5rem 1rem; /* Smaller padding */
+            border-radius: 8px; font-size: 0.9rem; /* Smaller font */
+            color: #4a4a4a; font-weight: 500; transition: background 0.3s ease, transform 0.3s ease;
+        }
+        .mode-toggle button i {
+            font-size: 0.9rem; /* Smaller icon */
+        }
+        .mode-toggle button.active {
+            background: #ffffff; box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+            color: #5a3e2b;
+        }
+        .mode-toggle button:hover {
+            background: #ffffff; transform: translateY(-1px);
+        }
+        .reader-container {
+            flex: 1; overflow-y: auto; padding: 2rem 10%; /* Reduced padding for laptop screens */
+            font-size: 1.5rem; line-height: 1.8; color: #2d2d2d; background: #ffffff;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.05); position: relative;
+            font-family: 'Inter', sans-serif;
+        }
+        .reader-container::before, .reader-container::after {
+            content: ''; position: absolute; top: 0; bottom: 0; width: 15px; /* Slightly smaller shadow */
+            background: linear-gradient(to left, rgba(0,0,0,0.05), transparent);
+            pointer-events: none;
+        }
+        .reader-container::before { left: 0; }
+        .reader-container::after { right: 0; background: linear-gradient(to right, rgba(0,0,0,0.05), transparent); }
+        .reader-container span {
+            transition: background 0.2s ease, color 0.2s ease;
+        }
+        .highlight {
+            background: #5a3e2b; color: #f8f5ee; padding: 0.1rem 0.2rem;
+        }
+        .controls {
+            display: flex; justify-content: center; align-items: center;
+            padding: 1rem; /* Reduced padding */
+            border-top: 2px solid #e5e7eb; gap: 0.6rem; /* Smaller gap */
+            background: #ffffff; box-shadow: 0 -2px 6px rgba(0,0,0,0.05);
+        }
+        .controls button, .controls a, .controls select {
+            padding: 0.6rem; /* Smaller padding for smaller buttons */
+            border: none; background: #f1ede4; border-radius: 8px; /* Smaller radius */
+            font-size: 0.9rem; /* Smaller font */
+            text-decoration: none; color: #4a4a4a; font-weight: 500;
+            display: flex; align-items: center; gap: 0.4rem; /* Smaller gap */
+            transition: background 0.3s ease, transform 0.3s ease;
+            flex: 1 1 90px; max-width: 100px; /* Smaller max-width */
+            justify-content: center;
+        }
+        .controls button:hover, .controls a:hover, .controls select:hover {
+            background: #e5e7eb; transform: translateY(-2px);
+        }
+        .controls select {
+            padding: 0.5rem; cursor: pointer;
+            font-size: 1.1rem; /* Increased font size for dropdown options (10% larger) */
+        }
+        .controls i {
+            font-size: 0.9rem; /* Smaller icon size */
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        #pasteScreen, #readerScreen { animation: fadeIn 0.5s ease-out; }
+        .highlight { animation: highlightPulse 0.2s ease-in-out; }
+        @keyframes highlightPulse {
+            0% { background: transparent; color: #2d2d2d; }
+            100% { background: #5a3e2b; color: #f8f5ee; }
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 1440px) {
+            #pasteScreen { padding: 1.2rem; }
+            #pasteScreen h1 { font-size: 2.2rem; }
+            #pasteScreen textarea { height: 260px; font-size: 0.95rem; }
+            .reader-container { padding: 1.8rem 8%; font-size: 1.05rem; }
+            .controls { gap: 0.5rem; }
+            .controls button, .controls a, .controls select { flex: 1 1 85px; max-width: 95px; }
+        }
+        @media (max-width: 1024px) {
+            #pasteScreen { padding: 1rem; }
+            #pasteScreen h1 { font-size: 2rem; }
+            #pasteScreen textarea { height: 240px; font-size: 0.9rem; }
+            #pasteScreen label { font-size: 1rem; }
+            header { padding: 0.7rem 1.2rem; }
+            .mode-toggle { gap: 0.3rem; }
+            .mode-toggle button { padding: 0.4rem 0.8rem; font-size: 0.85rem; }
+            .reader-container { padding: 1.5rem 6%; font-size: 1rem; }
+            .controls button, .controls a, .controls select { flex: 1 1 80px; max-width: 90px; font-size: 0.85rem; }
+        }
+        @media (max-width: 768px) {
+            #pasteScreen { padding: 1rem; }
+            #pasteScreen h1 { font-size: 1.8rem; }
+            #pasteScreen textarea { height: 220px; font-size: 0.9rem; }
+            #pasteScreen label { font-size: 0.95rem; }
+            header { padding: 0.6rem 1rem; }
+            .mode-toggle { width: 100%; justify-content: center; gap: 0.2rem; }
+            .mode-toggle button { padding: 0.4rem 0.8rem; font-size: 0.85rem; }
+            .reader-container { padding: 1.2rem 5%; font-size: 0.95rem; }
+            .controls button, .controls a, .controls select { flex: 1 1 75px; max-width: 85px; font-size: 0.8rem; }
+            .controls select { font-size: 1rem; } /* Maintain increased font size */
+        }
+        @media (max-width: 480px) {
+            #pasteScreen { padding: 0.8rem; }
+            #pasteScreen h1 { font-size: 1.6rem; }
+            #pasteScreen textarea { height: 200px; font-size: 0.85rem; }
+            #pasteScreen label { font-size: 0.9rem; }
+            header { padding: 0.5rem 0.8rem; }
+            .mode-toggle { gap: 0.2rem; }
+            .mode-toggle button { padding: 0.3rem 0.6rem; font-size: 0.8rem; }
+            .reader-container { padding: 1rem 4%; font-size: 0.9rem; }
+            .controls button, .controls a, .controls select { flex: 1 1 70px; max-width: 80px; font-size: 0.75rem; }
+            .controls select { font-size: 0.95rem; } /* Maintain increased font size */
+        }
+    </style>
+</head>
+<body>
+    <!-- Paste text screen -->
+    <div id="pasteScreen">
+        <form id="textForm">
+            {% csrf_token %}
+            <h1>Narration Mode</h1>
+            <label for="inputText">Paste your story here</label>
+            <textarea id="inputText" name="text" placeholder="Enter text to narrate…"></textarea>
+            <label for="voiceSelect">Narrator Voice</label>
+            <select id="voiceSelect" name="voice">
+                <option value="af_alloy">Alloy (Afrikaans)</option>
+                <option value="af_aoede">Aoede (Afrikaans)</option>
+                <option value="af_bella">Bella (Afrikaans)</option>
+                <option value="af_heart">Heart (Afrikaans)</option>
+                <option value="af_iessica">Iessica (Afrikaans)</option>
+                <option value="af_kore">Kore (Afrikaans)</option>
+                <option value="af_nicole">Nicole (Afrikaans)</option>
+                <option value="af_nova">Nova (Afrikaans)</option>
+                <option value="af_river">River (Afrikaans)</option>
+                <option value="af_sarah">Sarah (Afrikaans)</option>
+                <option value="af_sky">Sky (Afrikaans)</option>
+                <option value="am_adam">Adam (American)</option>
+                <option value="am_echo">Echo (American)</option>
+                <option value="am_eric">Eric (American)</option>
+                <option value="am_fenrir">Fenrir (American)</option>
+                <option value="am_liam">Liam (American)</option>
+                <option value="am_michael">Michael (American)</option>
+                <option value="am_onyx">Onyx (American)</option>
+                <option value="am_puck">Puck (American)</option>
+                <option value="am_santa">Santa (American)</option>
+                <option value="bf_alice">Alice (British Female)</option>
+                <option value="bf_emma">Emma (British Female)</option>
+                <option value="bf_isabellaw">Isabella (British Female)</option>
+                <option value="bf_lily">Lily (British Female)</option>
+                <option value="bm_daniel">Daniel (British Male)</option>
+                <option value="bm_fable">Fable (British Male)</option>
+                <option value="bm_aeorae">Aeorae (British Male)</option>
+                <option value="bm_lewis">Lewis (British Male)</option>
+                <option value="ef_dora">Dora (European Female)</option>
+                <option value="em_alex">Alex (European Male)</option>
+                <option value="em_santa">Santa (European Male)</option>
+                <option value="ff_siwis">Siwis (French Female)</option>
+                <option value="hf_alpha">Alpha (High Female)</option>
+                <option value="hf_beta">Beta (High Female)</option>
+                <option value="hm_omega">Omega (High Male)</option>
+                <option value="hm_psi">Psi (High Male)</option>
+                <option value="if_sara">Sara (Indian Female)</option>
+                <option value="im_nicola">Nicola (Indian Male)</option>
+                <option value="jf_alpha">Alpha (Japanese Female)</option>
+                <option value="jf_gongitsune">Gongitsune (Japanese Female)</option>
+                <option value="jf_nezumi">Nezumi (Japanese Female)</option>
+                <option value="jf_tebukuro">Tebukuro (Japanese Female)</option>
+                <option value="jm_kumo">Kumo (Japanese Male)</option>
+                <option value="pf_dora">Dora (Portuguese Female)</option>
+                <option value="pm_alex">Alex (Portuguese Male)</option>
+                <option value="pm_santa">Santa (Portuguese Male)</option>
+                <option value="zf_xiaobei">Xiaobei (Chinese Female)</option>
+                <option value="zf_xiaoni">Xiaoni (Chinese Female)</option>
+                <option value="zf_xiaoxiao">Xiaoxiao (Chinese Female)</option>
+                <option value="zf_xiaoyi">Xiaoyi (Chinese Female)</option>
+                <option value="zm_yunjian">Yunjian (Chinese Male)</option>
+                <option value="zm_yunxi">Yunxi (Chinese Male)</option>
+                <option value="zm_yunxia">Yunxia (Chinese Male)</option>
+                <option value="zm_yunyang">Yunyang (Chinese Male)</option>
+            </select>
+            <button type="button" id="generateBtn"><i class="fas fa-book-open"></i> Start Narration</button>
+            <div id="progressIndicator"></div>
+            <div id="generationStatus"></div>
+            <div id="errorMessage"></div>
+        </form>
+    </div>
+
+    <!-- Reader screen -->
+    <div id="readerScreen">
+        <header>
+            <div class="back" id="goBack"><i class="fas fa-arrow-left"></i></div>
+            <div class="mode-toggle">
+                <button data-mode="tts-highlight" class="active"><i class="fas fa-highlighter"></i> Listen + Highlight</button>
+                <button data-mode="tts"><i class="fas fa-headphones"></i> Listen</button>
+            </div>
+        </header>
+        <div class="reader-container" id="readerContainer"></div>
+        <div class="controls">
+            <button id="backwardBtn"><i class="fas fa-step-backward"></i></button>
+            <button id="playPauseBtn" data-state="play"><i class="fas fa-play"></i></button>
+            <button id="forwardBtn"><i class="fas fa-step-forward"></i></button>
+            <select id="speedSelect">
+                <option value="1.0">1x</option>
+                <option value="1.2">1.2x</option>
+                <option value="1.5">1.5x</option>
+                <option value="1.75">1.75x</option>
+                <option value="2.0">2x</option>
+            </select>
+            <a id="downloadBtn" href="#" download><i class="fas fa-download"></i></a>
+        </div>
+    </div>
+
+    <audio id="audioPlayer" preload="auto"></audio>
+
+    <script>
+        // State
+        let sentences = [];
+        let sentenceAudios = [];
+        let sentenceDurations = [];
+        let wordTimings = [];
+        let wordElements = [];
+        let currentIndex = 0;
+        let currentWordIndex = 0;
+        let isPlaying = false;
+        let mode = 'tts-highlight';
+        let playbackSpeed = 1.0;
+        const BASE_SECONDS_PER_WORD = 0.3;
+        const AUDIO_DIR = '{% static "audio" %}';
+        let playbackCompleted = false;
+        const AVG_TIME_PER_SENTENCE = 3.24;
+        let lastHighlightUpdate = 0;
+
+        // Elements
+        const pasteScreen = document.getElementById('pasteScreen');
+        const readerScreen = document.getElementById('readerScreen');
+        const textForm = document.getElementById('textForm');
+        const inputText = document.getElementById('inputText');
+        const voiceSelect = document.getElementById('voiceSelect');
+        const generateBtn = document.getElementById('generateBtn');
+        const progressIndicator = document.getElementById('progressIndicator');
+        const generationStatus = document.getElementById('generationStatus');
+        const errorMessage = document.getElementById('errorMessage');
+        const goBack = document.getElementById('goBack');
+        const readerContainer = document.getElementById('readerContainer');
+        const backwardBtn = document.getElementById('backwardBtn');
+        const playPauseBtn = document.getElementById('playPauseBtn');
+        const forwardBtn = document.getElementById('forwardBtn');
+        const speedSelect = document.getElementById('speedSelect');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const audioPlayer = document.getElementById('audioPlayer');
+        const modeButtons = document.querySelectorAll('.mode-toggle button');
+
+        // Helpers
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        function splitSentences(text) {
+            const sentences = text.split(/(?<=[.!?])\s+|(?<=\w)\s{2,}|\n+/).map(s => s.trim()).filter(s => s);
+            return sentences.length ? sentences : [text.trim()];
+        }
+
+        function splitWords(sentence) {
+            return sentence.trim().split(/\s+/).filter(w => w);
+        }
+
+        function countWords(sentence) {
+            return splitWords(sentence).length;
+        }
+
+        function estimateWordTimings(sentences, sentenceDurations) {
+            const wordTimings = [];
+            sentences.forEach((sentence, sentenceIdx) => {
+                const words = splitWords(sentence);
+                const duration = sentenceDurations[sentenceIdx] || (words.length * BASE_SECONDS_PER_WORD);
+                const wordDuration = duration / words.length;
+                let currentTime = 0;
+                words.forEach((word, wordIdx) => {
+                    wordTimings.push({
+                        start: currentTime,
+                        end: currentTime + wordDuration,
+                        sentenceIdx: sentenceIdx,
+                        wordIdx: wordIdx
+                    });
+                    currentTime += wordDuration;
+                });
+            });
+            console.log('Estimated word timings:', wordTimings);
+            return wordTimings;
+        }
+
+        function adjustWordTimingsForSpeed(timings, speed) {
+            return timings.map(timing => ({
+                ...timing,
+                start: timing.start / speed,
+                end: timing.end / speed
+            }));
+        }
+
+        function renderReader() {
+            try {
+                readerContainer.innerHTML = '';
+                wordElements = [];
+                sentences.forEach((sentence, sentenceIdx) => {
+                    const words = splitWords(sentence);
+                    const sentenceWords = [];
+                    words.forEach((word, wordIdx) => {
+                        const span = document.createElement('span');
+                        span.textContent = word + ' ';
+                        span.id = `sent-${sentenceIdx}-word-${wordIdx}`;
+                        readerContainer.appendChild(span);
+                        sentenceWords.push(span);
+                    });
+                    wordElements.push(sentenceWords);
+                    const br = document.createElement('br');
+                    readerContainer.appendChild(br);
+                });
+                console.log('Reader rendered with sentences:', sentences);
+                highlight('sentence', 0); // Highlight first sentence by default
+            } catch (error) {
+                console.error('Error rendering reader:', error);
+                errorMessage.style.display = 'block';
+                errorMessage.textContent = 'Failed to render text. Please try again.';
+            }
+        }
+
+        function highlight(indexType, index) {
+            try {
+                wordElements.flat().forEach(el => el.classList.remove('highlight'));
+                if (indexType === 'sentence') {
+                    const sentenceWords = wordElements[index];
+                    if (sentenceWords) {
+                        sentenceWords.forEach(el => el.classList.add('highlight'));
+                        if (sentenceWords.length > 0) {
+                            sentenceWords[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }
+                        console.log(`Highlighted sentence ${index}`);
+                    }
+                } else if (indexType === 'word') {
+                    const [sentenceIdx, wordIdx] = index.split('-').map(Number);
+                    const el = wordElements[sentenceIdx]?.[wordIdx];
+                    if (el) {
+                        el.classList.add('highlight');
+                        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        console.log(`Highlighted word ${wordIdx} in sentence ${sentenceIdx}`);
+                    }
+                }
+            } catch (error) {
+                console.error('Error highlighting:', error);
+            }
+        }
+
+        async function generateAudio(texts, voice) {
+            try {
+                const formData = new FormData();
+                texts.forEach(text => formData.append('text[]', text));
+                texts.forEach(() => formData.append('voice[]', voice));
+                formData.append('csrfmiddlewaretoken', getCookie('csrftoken'));
+                console.log(`Sending batch request for ${texts.length} sentences with voice: ${voice}`);
+
+                const response = await fetch('/generate/', {
+                    method: 'POST',
+                    body: formData,
+                    signal: AbortSignal.timeout(60000)
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`HTTP error ${response.status}: ${errorText}`);
+                }
+                const data = await response.json();
+                if (!data.audio_urls || !Array.isArray(data.audio_urls)) {
+                    throw new Error('Invalid response: audio_urls missing or not an array');
+                }
+                console.log(`Received batch response with ${data.audio_urls.length} audio URLs`);
+
+                return data;
+            } catch (error) {
+                console.error(`Error generating batch audio:`, error);
+                errorMessage.style.display = 'block';
+                errorMessage.textContent = `Failed to generate audio: ${error.message}`;
+                generationStatus.style.display = 'none';
+                progressIndicator.style.display = 'none';
+                throw error;
+            }
+        }
+
+        async function cleanupAudioFolder() {
+            try {
+                const response = await fetch('/cleanup_audio/', {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': getCookie('csrftoken') }
+                });
+                const data = await response.json();
+                console.log(data.status === 'success' ? 'Audio folder cleaned up' : 'No cleanup needed:', data.message);
+            } catch (error) {
+                console.error('Error cleaning up audio folder:', error);
+            }
+        }
+
+        function updateHighlight() {
+            if (!isPlaying || mode !== 'tts') return;
+            const now = performance.now();
+            if (now - lastHighlightUpdate < 16) return;
+            lastHighlightUpdate = now;
+
+            try {
+                const adjustedTimings = adjustWordTimingsForSpeed(wordTimings, playbackSpeed);
+                const currentTime = audioPlayer.currentTime;
+                const currentSentenceWords = adjustedTimings.filter(w => w.sentenceIdx === currentIndex);
+
+                let closestWord = null;
+                for (const word of currentSentenceWords) {
+                    if (currentTime >= word.start && currentTime < word.end) {
+                        closestWord = word;
+                        break;
+                    }
+                }
+
+                if (closestWord && currentWordIndex !== closestWord.wordIdx) {
+                    currentWordIndex = closestWord.wordIdx;
+                    requestAnimationFrame(() => {
+                        highlight('word', `${currentIndex}-${currentWordIndex}`);
+                        console.log(`Highlighted word ${currentWordIndex} ('${splitWords(sentences[currentIndex])[currentWordIndex]}') at time ${currentTime.toFixed(3)}`);
+                    });
+                }
+            } catch (error) {
+                console.error('Error updating highlight:', error);
+            }
+        }
+
+        function playNextSentence() {
+            console.log(`playNextSentence called with currentIndex=${currentIndex}, sentenceAudios.length=${sentenceAudios.length}`);
+            if (currentIndex >= sentenceAudios.length) {
+                console.log('Playback completed, stopping');
+                currentIndex = 0;
+                currentWordIndex = 0;
+                playbackCompleted = false;
+                isPlaying = false;
+                audioPlayer.removeEventListener('timeupdate', updateHighlight);
+                playPauseBtn.setAttribute('data-state', 'play');
+                playPauseBtn.innerHTML = '<i class="fas fa-play"></i>';
+                return;
+            }
+            try {
+                audioPlayer.src = sentenceAudios[currentIndex] + '?t=' + new Date().getTime();
+                audioPlayer.playbackRate = playbackSpeed;
+                audioPlayer.play().then(() => {
+                    isPlaying = true;
+                    playPauseBtn.setAttribute('data-state', 'pause');
+                    playPauseBtn.innerHTML = '<i class="fas fa-pause"></i>';
+                    if (mode === 'tts') {
+                        currentWordIndex = 0;
+                        highlight('word', `${currentIndex}-0`);
+                        audioPlayer.addEventListener('timeupdate', updateHighlight, { passive: true });
+                    } else if (mode === 'tts-highlight') {
+                        highlight('sentence', currentIndex);
+                    }
+                    console.log(`Playing sentence ${currentIndex}, audio: ${sentenceAudios[currentIndex]}, speed: ${playbackSpeed}x`);
+                    audioPlayer.onended = () => {
+                        console.log(`Audio ended for sentence ${currentIndex}`);
+                        audioPlayer.removeEventListener('timeupdate', updateHighlight);
+                        currentIndex++;
+                        playNextSentence();
+                    };
+                }).catch(error => {
+                    console.error('Error playing audio:', error);
+                    isPlaying = false;
+                    playPauseBtn.setAttribute('data-state', 'play');
+                    playPauseBtn.innerHTML = '<i class="fas fa-play"></i>';
+                    errorMessage.style.display = 'block';
+                    errorMessage.textContent = 'Failed to play audio. Please try again.';
+                });
+            } catch (error) {
+                console.error('Error in playNextSentence:', error);
+                isPlaying = false;
+                playPauseBtn.setAttribute('data-state', 'play');
+                playPauseBtn.innerHTML = '<i class="fas fa-play"></i>';
+                errorMessage.style.display = 'block';
+                errorMessage.textContent = 'Failed to play audio. Please try again.';
+            }
+        }
+
+        // Event wiring
+        generateBtn.addEventListener('click', async () => {
+            if (generateBtn.disabled) return;
+            try {
+                const text = inputText.value.trim();
+                const voice = voiceSelect.value;
+                console.log('Sending request with text:', text, 'voice:', voice);
+                if (!text) {
+                    errorMessage.style.display = 'block';
+                    errorMessage.textContent = 'Please enter some text!';
+                    return;
+                }
+
+                sentences = splitSentences(text);
+                console.log('Split sentences:', sentences);
+                if (!sentences.length) {
+                    errorMessage.style.display = 'block';
+                    errorMessage.textContent = 'No valid sentences found!';
+                    return;
+                }
+
+                generateBtn.disabled = true;
+                generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
+                progressIndicator.style.display = 'block';
+                progressIndicator.textContent = 'Generating audio: 0% (0s remaining)';
+                generationStatus.style.display = 'block';
+                generationStatus.textContent = 'Preparing to generate audio...';
+                errorMessage.style.display = 'none';
+                sentenceAudios = [];
+                sentenceDurations = [];
+
+                const totalSentences = sentences.length;
+                const estimatedTotalTime = totalSentences * AVG_TIME_PER_SENTENCE;
+                let currentSentence = 0;
+                let elapsedTime = 0;
+
+                const progressInterval = setInterval(() => {
+                    elapsedTime += AVG_TIME_PER_SENTENCE;
+                    currentSentence = Math.min(currentSentence + 1, totalSentences);
+                    const progressPercent = Math.min((currentSentence / totalSentences) * 100, 100);
+                    const remainingTime = Math.max(estimatedTotalTime - elapsedTime, 0);
+                    progressIndicator.textContent = `Generating audio: ${progressPercent.toFixed(0)}% (${remainingTime.toFixed(0)}s remaining)`;
+                    generationStatus.textContent = `Processing sentence ${currentSentence}/${totalSentences}`;
+                }, AVG_TIME_PER_SENTENCE * 1000);
+
+                const startTime = Date.now();
+                const data = await generateAudio(sentences, voice);
+                clearInterval(progressInterval);
+
+                const actualTime = (Date.now() - startTime) / 1000;
+                progressIndicator.textContent = `Generating audio: 100% (0s remaining)`;
+                generationStatus.textContent = `Generated ${data.audio_urls.length} audio files in ${actualTime.toFixed(2)}s`;
+
+                if (!data.audio_urls.length) {
+                    errorMessage.style.display = 'block';
+                    errorMessage.textContent = 'No audio generated. Please try again.';
+                    generationStatus.style.display = 'none';
+                    progressIndicator.style.display = 'none';
+                    return;
+                }
+
+                sentenceAudios = data.audio_urls.map(r => r.audio_url);
+                sentenceDurations = data.audio_urls.map(r => r.duration);
+
+                console.log('Generated sentenceAudios:', sentenceAudios);
+                console.log('Generated sentenceDurations:', sentenceDurations);
+
+                renderReader();
+                wordTimings = estimateWordTimings(sentences, sentenceDurations);
+                console.log('Estimated word timings:', wordTimings);
+
+                currentIndex = 0;
+                currentWordIndex = 0;
+                playbackCompleted = false;
+                downloadBtn.href = sentenceAudios[0];
+
+                pasteScreen.style.display = 'none';
+                readerScreen.style.display = 'flex';
+                progressIndicator.style.display = 'none';
+            } catch (error) {
+                console.error('Generate button error:', error);
+                errorMessage.style.display = 'block';
+                errorMessage.textContent = 'Failed to generate audio. Please try again.';
+            } finally {
+                generateBtn.disabled = false;
+                generateBtn.innerHTML = '<i class="fas fa-book-open"></i> Start Narration';
+            }
+        });
+
+        goBack.addEventListener('click', () => {
+            try {
+                audioPlayer.pause();
+                audioPlayer.src = '';
+                isPlaying = false;
+                playbackCompleted = false;
+                mode = 'tts-highlight';
+                playbackSpeed = 1.0;
+                speedSelect.value = '1.0';
+                modeButtons.forEach(b => b.classList.remove('active'));
+                modeButtons[0].classList.add('active');
+                sentences = [];
+                sentenceAudios = [];
+                sentenceDurations = [];
+                wordTimings = [];
+                wordElements = [];
+                currentIndex = 0;
+                currentWordIndex = 0;
+                readerContainer.innerHTML = '';
+                audioPlayer.removeEventListener('timeupdate', updateHighlight);
+                audioPlayer.onended = null;
+                playPauseBtn.setAttribute('data-state', 'play');
+                playPauseBtn.innerHTML = '<i class="fas fa-play"></i>';
+                cleanupAudioFolder();
+                pasteScreen.style.display = 'flex';
+                readerScreen.style.display = 'none';
+                errorMessage.style.display = 'none';
+                generationStatus.style.display = 'none';
+                progressIndicator.style.display = 'none';
+                console.log('Switched back to paste screen');
+            } catch (error) {
+                console.error('Error in goBack handler:', error);
+            }
+        });
+
+        modeButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                try {
+                    const newMode = btn.dataset.mode;
+                    if (newMode === mode) return;
+
+                    modeButtons.forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+
+                    audioPlayer.pause();
+                    audioPlayer.removeEventListener('timeupdate', updateHighlight);
+                    audioPlayer.onended = null;
+                    isPlaying = false;
+                    playPauseBtn.setAttribute('data-state', 'play');
+                    playPauseBtn.innerHTML = '<i class="fas fa-play"></i>';
+                    mode = newMode;
+                    console.log('Mode switched to:', mode);
+
+                    if (playbackCompleted) {
+                        currentIndex = 0;
+                        currentWordIndex = 0;
+                        audioPlayer.currentTime = 0;
+                        playbackCompleted = false;
+                    }
+                    highlight('sentence', currentIndex);
+                } catch (error) {
+                    console.error('Error in modeButtons handler:', error);
+                }
+            });
+        });
+
+        playPauseBtn.addEventListener('click', () => {
+            try {
+                if (playPauseBtn.getAttribute('data-state') === 'play' && sentenceAudios.length > 0) {
+                    audioPlayer.pause();
+                    audioPlayer.removeEventListener('timeupdate', updateHighlight);
+                    audioPlayer.onended = null;
+                    if (playbackCompleted) {
+                        currentIndex = 0;
+                        currentWordIndex = 0;
+                        audioPlayer.currentTime = 0;
+                        playbackCompleted = false;
+                    }
+                    playNextSentence();
+                    console.log('Play button clicked');
+                } else if (playPauseBtn.getAttribute('data-state') === 'pause' && isPlaying) {
+                    audioPlayer.pause();
+                    isPlaying = false;
+                    audioPlayer.removeEventListener('timeupdate', updateHighlight);
+                    playPauseBtn.setAttribute('data-state', 'play');
+                    playPauseBtn.innerHTML = '<i class="fas fa-play"></i>';
+                    console.log('Pause button clicked');
+                }
+            } catch (error) {
+                console.error('Error in playPauseBtn handler:', error);
+                errorMessage.style.display = 'block';
+                errorMessage.textContent = 'Failed to play/pause audio. Please try again.';
+            }
+        });
+
+        backwardBtn.addEventListener('click', () => {
+            try {
+                if (currentIndex > 0) {
+                    audioPlayer.pause();
+                    audioPlayer.removeEventListener('timeupdate', updateHighlight);
+                    audioPlayer.onended = null;
+                    currentIndex--;
+                    currentWordIndex = 0;
+                    playNextSentence();
+                    console.log('Backward button clicked, moved to sentence:', currentIndex);
+                }
+            } catch (error) {
+                console.error('Error in backwardBtn handler:', error);
+            }
+        });
+
+        forwardBtn.addEventListener('click', () => {
+            try {
+                if (currentIndex < sentenceAudios.length - 1) {
+                    audioPlayer.pause();
+                    audioPlayer.removeEventListener('timeupdate', updateHighlight);
+                    audioPlayer.onended = null;
+                    currentIndex++;
+                    currentWordIndex = 0;
+                    playNextSentence();
+                    console.log('Forward button clicked, moved to sentence:', currentIndex);
+                }
+            } catch (error) {
+                console.error('Error in forwardBtn handler:', error);
+            }
+        });
+
+        speedSelect.addEventListener('change', () => {
+            try {
+                const newSpeed = parseFloat(speedSelect.value);
+                if (newSpeed !== playbackSpeed) {
+                    playbackSpeed = newSpeed;
+                    if (isPlaying) {
+                        audioPlayer.playbackRate = playbackSpeed;
+                        if (mode === 'tts') {
+                            currentWordIndex = 0;
+                            audioPlayer.currentTime = 0;
+                            highlight('word', `${currentIndex}-0`);
+                            console.log(`Speed changed to ${playbackSpeed}x, reset to start of sentence ${currentIndex}`);
+                        } else if (mode === 'tts-highlight') {
+                            highlight('sentence', currentIndex);
+                        }
+                    }
+                    console.log(`Speed changed to ${playbackSpeed}x`);
+                }
+            } catch (error) {
+                console.error('Error in speedSelect handler:', error);
+            }
+        });
+
+        window.addEventListener('unload', () => {
+            cleanupAudioFolder();
+        });
+
+        audioPlayer.addEventListener('error', () => {
+            console.error('Audio playback error');
+            isPlaying = false;
+            playPauseBtn.setAttribute('data-state', 'play');
+            playPauseBtn.innerHTML = '<i class="fas fa-play"></i>';
+            errorMessage.style.display = 'block';
+            errorMessage.textContent = 'Failed to play audio. Please try again.';
+        });
+    </script>
+</body>
+</html>
